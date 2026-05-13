@@ -1,0 +1,13 @@
+{
+  "folders": [
+    {
+      "path": "client",
+      "name": "client (React)"
+    },
+    {
+      "path": "server",
+      "name": "server (Express)"
+    }
+  ],
+  "settings": {}
+}
