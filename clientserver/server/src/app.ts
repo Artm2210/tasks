@@ -1,25 +1,28 @@
 import express from "express";
 
-interface Book {
-    isbn: string;
+interface Ship {
+    id: string;
     name: string;
-    author: string;
-    pages: number;
+    type: string;
+    captain: string;
+    crew: number;
     year: number;
     addedOn: string;
     deleted?: boolean;
 }
 
-const books: Record<string, Book> = {};
+const ships: Record<string, Ship> = {};
 
-const sampleBooks: Omit<Book, "addedOn">[] = [
-    { isbn: "978-5-699-12011-6", name: "Война и мир", author: "Лев Толстой", pages: 1300, year: 1869 },
-    { isbn: "978-5-17-118903-7", name: "Преступление и наказание", author: "Федор Достоевский", pages: 672, year: 1866 },
-    { isbn: "978-5-389-15744-4", name: "Мастер и Маргарита", author: "Михаил Булгаков", pages: 480, year: 1967 },
+const sampleShips: Omit<Ship, "addedOn">[] = [
+    { id: "SHIP-001", name: "Титаник", type: "Пассажирский", captain: "Эдвард Смит", crew: 892, year: 1912 },
+    { id: "SHIP-002", name: "Мэри Роуз", type: "Военный", captain: "Джордж Кэрью", crew: 400, year: 1511 },
+    { id: "SHIP-003", name: "Санта-Мария", type: "Каравелла", captain: "Христофор Колумб", crew: 90, year: 1460 },
+    { id: "SHIP-004", name: "Виктория", type: "Фрегат", captain: "Фернан Магеллан", crew: 55, year: 1519 },
+    { id: "SHIP-005", name: "Королева Анна", type: "Пиратский", captain: "Эдвард Тич", crew: 300, year: 1710 },
 ];
 
-sampleBooks.forEach(book => {
-    books[book.isbn] = { ...book, addedOn: new Date().toISOString() };
+sampleShips.forEach(ship => {
+    ships[ship.id] = { ...ship, addedOn: new Date().toISOString() };
 });
 
 export function createApp() {
@@ -39,27 +42,28 @@ export function createApp() {
     
     app.use(express.json());
 
-    app.get("/api/books", (req, res) => {
+    app.get("/api/ships", (req, res) => {
         const page = parseInt(req.query.page as string) || 1;
         const take = parseInt(req.query.take as string) || 10;
         const sort = (req.query.sort as string) || "addedOn";
         const filter = ((req.query.filter as string) || "").toLowerCase();
         
-        let items = Object.values(books).filter(b => !b.deleted);
+        let items = Object.values(ships).filter(s => !s.deleted);
         
         if (filter) {
-            items = items.filter(b => 
-                b.name.toLowerCase().includes(filter) || 
-                b.author.toLowerCase().includes(filter) ||
-                b.isbn.toLowerCase().includes(filter)
+            items = items.filter(s => 
+                s.name.toLowerCase().includes(filter) || 
+                s.type.toLowerCase().includes(filter) ||
+                s.captain.toLowerCase().includes(filter) ||
+                s.id.toLowerCase().includes(filter)
             );
         }
         
         const reverse = sort.startsWith("-");
         const sortField = reverse ? sort.slice(1) : sort;
         items.sort((a, b) => {
-            const aVal = a[sortField as keyof Book];
-            const bVal = b[sortField as keyof Book];
+            const aVal = a[sortField as keyof Ship];
+            const bVal = b[sortField as keyof Ship];
             if (typeof aVal === "string" && typeof bVal === "string") {
                 return reverse ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
             }
@@ -82,77 +86,79 @@ export function createApp() {
         });
     });
 
-    app.post("/api/books", (req, res) => {
-        const { isbn, name, author, pages, year } = req.body;
+    app.post("/api/ships", (req, res) => {
+        const { id, name, type, captain, crew, year } = req.body;
         
-        if (!isbn || !name || !author) {
-            res.status(400).json({ type: "ValidationError", message: "ISBN, name and author are required" });
+        if (!id || !name || !type || !captain) {
+            res.status(400).json({ type: "ValidationError", message: "ID, name, type and captain are required" });
             return;
         }
         
-        if (books[isbn] && !books[isbn].deleted) {
-            res.status(400).json({ type: "ValidationError", message: "Book already exists" });
+        if (ships[id] && !ships[id].deleted) {
+            res.status(400).json({ type: "ValidationError", message: "Ship with this ID already exists" });
             return;
         }
         
-        const book: Book = {
-            isbn,
+        const ship: Ship = {
+            id,
             name,
-            author,
-            pages: parseInt(pages) || 0,
+            type,
+            captain,
+            crew: parseInt(crew) || 0,
             year: parseInt(year) || 0,
             addedOn: new Date().toISOString()
         };
         
-        books[isbn] = book;
-        res.status(201).json(book);
+        ships[id] = ship;
+        res.status(201).json(ship);
     });
 
-    app.get("/api/books/:isbn", (req, res) => {
-        const book = books[req.params.isbn];
+    app.get("/api/ships/:id", (req, res) => {
+        const ship = ships[req.params.id];
         
-        if (!book || book.deleted) {
-            res.status(404).json({ type: "NotFound", message: "Book not found" });
+        if (!ship || ship.deleted) {
+            res.status(404).json({ type: "NotFound", message: "Ship not found" });
             return;
         }
         
-        res.json(book);
+        res.json(ship);
     });
 
-    app.patch("/api/books/:isbn", (req, res) => {
-        const book = books[req.params.isbn];
+    app.patch("/api/ships/:id", (req, res) => {
+        const ship = ships[req.params.id];
         
-        if (!book || book.deleted) {
-            res.status(404).json({ type: "NotFound", message: "Book not found" });
+        if (!ship || ship.deleted) {
+            res.status(404).json({ type: "NotFound", message: "Ship not found" });
             return;
         }
         
-        const { name, author, pages, year } = req.body;
-        if (name) book.name = name;
-        if (author) book.author = author;
-        if (pages) book.pages = parseInt(pages);
-        if (year) book.year = parseInt(year);
+        const { name, type, captain, crew, year } = req.body;
+        if (name) ship.name = name;
+        if (type) ship.type = type;
+        if (captain) ship.captain = captain;
+        if (crew) ship.crew = parseInt(crew);
+        if (year) ship.year = parseInt(year);
         
-        res.json(book);
+        res.json(ship);
     });
 
-    app.delete("/api/books/:isbn", (req, res) => {
-        const book = books[req.params.isbn];
+    app.delete("/api/ships/:id", (req, res) => {
+        const ship = ships[req.params.id];
         
-        if (!book || book.deleted) {
-            res.status(404).json({ type: "NotFound", message: "Book not found" });
+        if (!ship || ship.deleted) {
+            res.status(404).json({ type: "NotFound", message: "Ship not found" });
             return;
         }
         
-        book.deleted = true;
-        res.json({ message: "Book deleted successfully" });
+        ship.deleted = true;
+        res.json({ message: "Ship deleted successfully" });
     });
 
-    app.get("/api/books/:isbn/status", (req, res) => {
-        const book = books[req.params.isbn];
+    app.get("/api/ships/:id/status", (req, res) => {
+        const ship = ships[req.params.id];
         
-        if (!book || book.deleted) {
-            res.status(404).json({ type: "NotFound", message: "Book not found" });
+        if (!ship || ship.deleted) {
+            res.status(404).json({ type: "NotFound", message: "Ship not found" });
             return;
         }
         
